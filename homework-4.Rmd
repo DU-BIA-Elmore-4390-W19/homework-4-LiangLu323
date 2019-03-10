@@ -45,39 +45,31 @@ Problem 7 from Chapter 8 in the text. To be specific, please use a sequence of
 set.seed(1234)
 df <- tbl_df(Boston)
 
-for (k in 1:20){
   inTraining <- createDataPartition(df$medv, p = .75, list = F)
   training <- df[inTraining, ]
   testing <- df[-inTraining, ]
   mtry <- c(3:9)
   ntree <- seq(25, 500, len = 20)
-  results <- tibble(trial = rep(NA, 140),
+  results <- tibble(
   mtry = rep(NA, 140),
   ntree = rep(NA, 140),
   mse = rep(NA, 140)) 
   for(i in 1:7){
-    cat(sprintf('Trial: %s, mtry: %s --- %s\n', k, mtry[i], Sys.time()))
     for(j in 1:20){ 
       rf_train <- randomForest(medv ~ .,
                                data = training,
                                mtry = mtry[i],
                                ntree = ntree[j])
       mse <- mean((predict(rf_train, newdata = testing) - testing$medv)^2)
-      results[(i-1)*20 + j, ] <- c(k, mtry[i], ntree[j], mse)
+      results[(i-1)*20 + j, ] <- c(mtry[i], ntree[j], mse)
     }
   }
-  if(exists("results_total")){
-  results_total <- bind_rows(results_total, results)
-  }
-  else(
-  results_total <- results
-  )
-}
+
 ```
 
 
 ```{r }
-results_total$mtry <- as.factor(results_total$mtry)
+results$mtry <- as.factor(results$mtry)
 p <- ggplot(results, aes(x=ntree, y=mse, group=mtry, colour=mtry))
 p + geom_line()
 ```
@@ -173,7 +165,7 @@ d. Use bagging to analyze the data.
 
 ```{r}
 set.seed(10982)
-bag_sales <- randomForest(Sales ~ ., data = training, mtry = 9)
+bag_sales <- randomForest(Sales ~ ., data = training, mtry = 9, importance = T)
 bag_sales
 ```
 
@@ -187,16 +179,7 @@ sales_test_df <- testing %>%
 mean(sales_test_df$sq_err_bags)
 ```
 ```{r}
-imp <- varImp(rf_sales_cv)$importance
-rn <- row.names(imp)
-imp_df <- data_frame(variable = rn, 
-                     importance = imp$Overall) %>%
-  arrange(desc(-importance)) %>%
-  mutate(variable = factor(variable, variable))
-p <- ggplot(data = imp_df,
-            aes(variable, importance))
-p + geom_col(fill = "#6e0000") +
-  coord_flip()
+importance(bag_sales)
 ```
 ShelveLocGood is the most important factor and price the next. 
 
@@ -216,7 +199,7 @@ gbm_boston <- train(Sales ~ .,
                     trControl = trainControl, 
                     tuneGrid = grid,
                     verbose = FALSE)
-gbm_boston
+
 ```
 ```{r}
 test_preds <- predict(gbm_boston, newdata = testing)
@@ -241,3 +224,5 @@ sales_test_df <- sales_test_df %>%
 mean(sales_test_df$sq_err_gbm)
 ```
 3. Summarize your results. 
+
+ As showed above, multiple regression has the smallest error rate among all the modeling methods. 
